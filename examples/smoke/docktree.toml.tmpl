@@ -1,0 +1,9 @@
+app = "__DOCKTREE_SMOKE_APP__"
+compose = "compose.yaml"
+shared = ["redis"]
+
+[services.web]
+host_port_env = "WEB_PORT"
+
+[services.redis]
+host_port_env = "REDIS_PORT"

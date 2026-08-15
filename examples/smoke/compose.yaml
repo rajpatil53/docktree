@@ -1,0 +1,32 @@
+services:
+  web:
+    image: traefik/whoami:latest
+    ports:
+      - "${WEB_PORT:-0}:80"
+
+  client:
+    image: redis:7-alpine
+    command: ["sh", "-c", "while :; do sleep 3600; done"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "redis", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-0}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 2s
+      retries: 20
+
+volumes:
+  redis-data:

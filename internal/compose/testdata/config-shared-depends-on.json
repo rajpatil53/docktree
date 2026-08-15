@@ -1,0 +1,16 @@
+{
+  "services": {
+    "api": {
+      "image": "example/api:latest"
+    },
+    "postgres": {
+      "image": "postgres:16",
+      "depends_on": {
+        "api": {
+          "condition": "service_started",
+          "required": true
+        }
+      }
+    }
+  }
+}

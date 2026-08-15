@@ -1,0 +1,7 @@
+# Go build output (the binary installs to ~/.local/bin/wtc, not in-repo)
+/wtc
+/dist/
+.DS_Store
+
+# built binary
+/docktree

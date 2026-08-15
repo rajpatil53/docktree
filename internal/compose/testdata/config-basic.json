@@ -1,0 +1,92 @@
+{
+  "services": {
+    "api": {
+      "image": "example/api:latest",
+      "container_name": "fixed-api",
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy",
+          "required": true
+        },
+        "worker": {
+          "condition": "service_started",
+          "required": true
+        }
+      },
+      "env_file": [
+        ".env"
+      ],
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 3000,
+          "published": "3000",
+          "protocol": "tcp"
+        }
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "api-cache",
+          "target": "/cache"
+        }
+      ]
+    },
+    "worker": {
+      "image": "example/worker:latest",
+      "depends_on": [
+        "postgres"
+      ]
+    },
+    "postgres": {
+      "image": "postgres:16",
+      "container_name": "fixed-postgres",
+      "networks": {
+        "backplane": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 5432,
+          "published": "5432",
+          "protocol": "tcp"
+        }
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "pgdata",
+          "target": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    "mailhog": {
+      "image": "mailhog/mailhog",
+      "ports": [
+        {
+          "target": 8025,
+          "published": "8025",
+          "protocol": "tcp"
+        }
+      ]
+    }
+  },
+  "networks": {
+    "backplane": {
+      "driver": "bridge"
+    },
+    "frontend": {
+      "driver": "bridge"
+    }
+  },
+  "volumes": {
+    "pgdata": {},
+    "api-cache": {},
+    "named-data": {
+      "name": "fixed-data"
+    },
+    "external-data": {
+      "external": true
+    }
+  }
+}
