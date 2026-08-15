@@ -1,168 +1,84 @@
 # Docktree
 
-Docktree runs isolated Docker Compose development stacks for each git worktree
-on one machine. It keeps app containers separate per worktree, assigns stable
-host ports, and lets expensive infrastructure such as Postgres or Redis be
-shared until a worktree needs its own copy.
+AI coding agents make it practical to work on several tasks at once, across one or many codebases. Git worktrees isolate the code, but not the development environment: concurrent stacks compete for ports and shared databases can be polluted by another worktree's migrations, schemas, or test data.
 
-The CLI command is `docktree`.
+Docktree makes Docker Compose worktrees independently runnable with almost no additional setup. It gives each worktree its own Compose project and stable, collision-resistant ports. Infrastructure such as Postgres or Redis can be shared to keep local development lightweight, then forked when a task needs isolated data.
 
-## What It Does
-
-- Derives a stable identity from the current git worktree.
-- Writes Docktree-owned artifacts under `.docktree/`.
-- Reserves collision-resistant ports in `~/.config/docktree/registry.json`.
-- Renders separate Compose projections for shared infrastructure and the current
-  worktree.
-- Starts shared infrastructure once per project and app stacks once per
-  worktree.
-- Supports opt-in stateful forks for worktrees that need isolated data.
-
-Docktree does not rewrite your application Compose file or `.env`. Your normal
-Compose setup stays usable without Docktree.
-
-## Requirements
-
-- Go 1.26 or newer to build from source.
-- Docker with Docker Compose v2.24 or newer.
-- Linux or macOS. Windows is supported through WSL2.
-- A project managed by git.
+Your existing Compose file and `.env` remain usable without Docktree.
 
 ## Install
 
-With Go 1.26 or newer (installs the latest tagged release to `$GOBIN`, usually
-`~/go/bin`):
+Docktree requires Docker with Compose v2.24 or later, Git, and macOS, Linux, or WSL2. To install the latest release, with Go 1.26 or newer:
 
 ```bash
 go install github.com/rajpatil53/docktree@latest
 ```
 
-Make sure `~/go/bin` (or your `GOBIN`) is on `PATH`.
-
-### Build from source
-
-From a clone of this repository:
-
-```bash
-CGO_ENABLED=0 go build -o ~/.local/bin/docktree .
-```
-
-Make sure the install directory is on `PATH`:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-Verify the binary:
+Ensure `$GOBIN` (usually `~/go/bin`) is on your `PATH`, then verify it:
 
 ```bash
 docktree --help
 ```
 
-## Quick Start
+To build from a source checkout instead:
 
-Run these commands inside an application repository that already has a Docker
-Compose file.
+```bash
+CGO_ENABLED=0 go build -o ~/.local/bin/docktree .
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+## Basic usage
+
+In the application repository, make published ports configurable. Replace a hardcoded host port such as `"3000:3000"` with a token and default:
+
+```yaml
+services:
+  web:
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+```
+
+Then initialise and start the current worktree:
 
 ```bash
 cd /path/to/your-app
 docktree init
-docktree doctor
 docktree up
-docktree ls
 docktree open
 ```
 
-When finished with the current worktree stack:
+`init` creates `docktree.toml`, adds Docktree's generated directory to `.gitignore`, and detects port tokens in the Compose file. `up` creates the worktree-specific Compose projection and starts the stack. `open` prints a published service URL.
+
+Create another worktree and start it the same way:
+
+```bash
+git worktree add ../your-app-feature -b feature/example
+cd ../your-app-feature
+docktree up
+docktree open
+```
+
+The two stacks run independently, with different host ports. Stop only the current worktree's app stack when you are done:
 
 ```bash
 docktree down
 ```
 
-`docktree down` stops only the current worktree's app stack. Shared
-infrastructure is left running.
-
-## Disposable Two-Worktree Demo
-
-To exercise the current source against real Docker without modifying an
-existing application, run the smoke demo from the repository root. It requires
-Bash, curl, Git, Go, and a running Docker daemon with Compose:
+Useful everyday commands:
 
 ```bash
-./scripts/smoke.sh
+docktree ls                 # list all Docktree stacks
+docktree ps                 # inspect this worktree's services
+docktree logs web           # follow a service's logs
+docktree exec web -- sh     # run a command in a service
+docktree doctor             # check Docker, Compose, config, and ports
 ```
 
-It builds a temporary binary and application repository, starts primary and
-feature worktrees with different web ports, verifies that both reach the same
-shared Redis through their own uplinks, and then removes the containers,
-networks, volume, registry, and temporary files.
+## Advanced usage
 
-Keep the fully initialized demo running to explore it manually:
+### Share infrastructure
 
-```bash
-./scripts/smoke.sh --keep
-```
-
-The command prints both worktree paths and URLs. The retained demo contains a
-`docktree` wrapper that preserves its isolated registry and Docker context, a
-`README.txt` with exploration commands, and a `destroy-demo` cleanup helper.
-See [the smoke fixture](examples/smoke/README.md) for details. The first run may
-pull the small demo and uplink images if they are not already cached.
-
-## Compose Convention
-
-Docktree works best when host ports are configurable through environment
-variables. Instead of hardcoding host ports:
-
-```yaml
-services:
-  api:
-    ports:
-      - "3000:3000"
-```
-
-Use a token with a default:
-
-```yaml
-services:
-  api:
-    ports:
-      - "${API_PORT:-3000}:3000"
-```
-
-Docktree writes `API_PORT` into `.docktree/.env.worktree`, so each worktree can bind a
-different host port while the container still listens on `3000`.
-
-Shared services can keep their canonical service names. For example, app
-containers can still connect to `postgres:5432`: each worktree projection
-includes a generated `dt-uplink-<slug>` ambassador that answers to the shared
-services' names on the worktree's own network and forwards each port to the
-shared infra stack over the Docktree-managed `<app>_shared` network. App
-services never join the shared network themselves, so a name like `redis`
-resolves exactly once per worktree — to that worktree's redis — no matter how
-many worktrees run at once.
-
-One-off containers (test recipes, ad-hoc jobs) should attach the worktree's
-network and dial canonical names there:
-
-```sh
-docker run --rm --network "$DOCKTREE_WORKTREE_NETWORK" my-test-image
-```
-
-`DOCKTREE_WORKTREE_NETWORK` is written to `.docktree/.env.worktree` alongside
-`DOCKTREE_SHARED_NETWORK` (which remains valid for reaching shared infra
-directly).
-
-## Project Configuration
-
-`docktree init` creates `docktree.toml` if it does not exist. The smallest valid
-file is:
-
-```toml
-app = "shop"
-```
-
-Use `shared` to move services into the long-lived shared infra stack:
+Add services that should run once per repository to `docktree.toml`:
 
 ```toml
 app = "shop"
@@ -170,325 +86,158 @@ compose = "compose.yaml"
 shared = ["postgres", "redis"]
 ```
 
-Configure services with port tokens or manual start behavior:
+After that, `docktree up` starts the shared infrastructure when needed and each worktree's app services connect to it by their normal Compose names (for example, `postgres:5432`). `docktree down` leaves shared infrastructure running.
+
+Manage it explicitly when needed:
+
+```bash
+docktree shared up
+docktree shared status
+docktree shared down
+docktree shared nuke --confirm shop-infra  # also removes its volumes
+```
+
+Shared services must expose the container ports that app services use, through `ports:` or `expose:` in Compose. Docktree cannot share a service that depends on a non-shared service.
+
+### Configure services and environment
+
+Use `[services]` to declare a port token explicitly, fix a service's port, or keep a service out of the default startup set:
 
 ```toml
-[services.api]
-host_port_env = "API_PORT"
-fixed = false
-
-[services.frontend]
+[services.web]
 host_port_env = "WEB_PORT"
 
-[services.e2e]
+[services.admin]
+host_port_env = "ADMIN_PORT"
+fixed = true
 autostart = false
 ```
 
-`autostart = false` places the service behind Docktree's manual profile in the
-generated projection.
+`autostart = false` makes the service opt-in: run it with `docktree up admin`. `fixed = true` prevents Docktree from moving the resolved port if it is already in use, which is useful for external callbacks.
 
-Configure templated environment values:
+Set worktree-aware environment values with `{app}`, `{slug}`, and `{main_slug}`:
 
 ```toml
 [env]
 OPENSEARCH_INDEX_PREFIX = "{slug}_"
 ```
 
-Supported template variables are:
-
-- `{app}`: the Docktree app name.
-- `{slug}`: the current worktree slug.
-- `{main_slug}`: the main worktree slug.
-
-Generated env values (`[env]`, `public_url_env`, ports, stateful overrides) are
-re-applied over the process environment of every Compose command Docktree runs
-against the generated projections, so they take precedence over variables
-exported in your shell or injected by the secrets wrapper. Keys a service pins
-as literals in its own `environment:` block still win.
-
-If Compose commands need a secrets wrapper, configure it once:
+If Compose needs a secrets command, configure a wrapper that injects environment variables and executes its trailing command:
 
 ```toml
 [secrets]
 wrapper = "doppler run --"
 ```
 
-Docktree prepends the wrapper to Docker Compose commands and checks it before
-non-interactive runs. The wrapper must inject env and exec its trailing
-command, like `doppler run --` or `op run --`; shell-form wrappers such as
-`sh -c` are not supported. Because generated env values are re-applied after
-the wrapper's injection, a wrapper secret with the same name as a generated
-value does not override it.
+Generated values—including port tokens—take precedence over values provided by the shell or secrets wrapper. A literal service-level `environment:` value in Compose still takes precedence.
 
-## Generated Files
+### Run commands against another worktree
 
-Docktree owns these files inside each worktree:
-
-| Path | Purpose |
-|---|---|
-| `.docktree/.env.worktree` | Generated env file with `COMPOSE_PROJECT_NAME`, shared and worktree network names, resolved ports, templated env, and isolated stateful env overrides. |
-| `.docktree/compose.worktree.yml` | Generated Compose projection for per-worktree services. |
-| `.docktree/compose.infra.yml` | Generated Compose projection for services listed in `shared`. |
-
-Docktree also stores machine-wide port reservations in:
-
-```text
-~/.config/docktree/registry.json
-```
-
-These files are derived artifacts. `docktree up`, `docktree shared up`, and
-related commands regenerate them as needed.
-
-## Daily Workflow
-
-Start the current worktree:
+Supply a worktree slug or path before the service where supported:
 
 ```bash
-docktree up
+docktree open feature_example web
+docktree ps ../your-app-feature
+docktree logs feature_example web
+docktree exec feature_example web -- sh
+docktree explain feature_example
 ```
 
-`up` prints Docktree phase messages, skips shared infra reconciliation when
-shared services are already ready, and runs Compose in plain progress mode so
-image build output remains visible in non-interactive terminals.
+`docktree explain` is the best way to inspect the derived slug, ports, networks, generated files, and Compose commands for a worktree.
 
-Start selected services only:
+### Isolate stateful data
 
-```bash
-docktree up api worker
-```
-
-Show known Docktree stacks:
-
-```bash
-docktree ls
-docktree ls --json
-```
-
-Print the current worktree's service URL:
-
-```bash
-docktree open
-docktree open api
-```
-
-Target another worktree by slug or worktree path:
-
-```bash
-docktree open feature_checkout api
-docktree ps ../feature-checkout
-```
-
-Inspect running services:
-
-```bash
-docktree ps
-docktree ps --service
-```
-
-Tail logs:
-
-```bash
-docktree logs
-docktree logs api
-```
-
-Run a command inside a service:
-
-```bash
-docktree exec api -- sh
-docktree exec api -- bundle exec rails db:migrate
-```
-
-Explain what Docktree derived:
-
-```bash
-docktree explain
-docktree explain feature_checkout
-```
-
-Run diagnostics:
-
-```bash
-docktree doctor
-```
-
-Stop only the current worktree stack:
-
-```bash
-docktree down
-```
-
-## Shared Infrastructure
-
-Shared services are listed in `docktree.toml`:
-
-```toml
-shared = ["postgres", "redis"]
-```
-
-Start or reconcile shared infra:
-
-```bash
-docktree shared up
-```
-
-Show shared infra status:
-
-```bash
-docktree shared status
-```
-
-Stop shared infra without deleting volumes:
-
-```bash
-docktree shared down
-```
-
-Remove shared infra and volumes through the guarded path:
-
-```bash
-docktree shared nuke --confirm <app>-infra
-```
-
-Replace `<app>` with the configured app name.
-
-## Stateful Forks
-
-Use a fork when one worktree needs isolated data for a configured stateful
-service.
-
-Example Postgres configuration:
+Configure a stateful service before forking it. This Postgres example clones the shared database into a worktree-specific database:
 
 ```toml
 [stateful.postgres]
-default_strategy = "shared"
 engine = "postgres"
-snapshot_source = "shop_pgdata"
 source_db = "shop_shared"
-superuser = "postgres"   # role to connect as; default "postgres" (the official image's POSTGRES_USER)
 env = { POSTGRES_PRIMARY_DB = "shop_shared_{slug}" }
 ```
 
-With the Postgres fast path, Docktree clones `source_db` into
-`<source_db>_<slug>` for the current worktree. It connects as `superuser`
-(default `postgres`); set this if your container's `POSTGRES_USER` differs. Stateful `env` entries are written
-only when the service is isolated, so `docktree fork postgres` writes
-`POSTGRES_PRIMARY_DB=shop_shared_<slug>` and `docktree unfork postgres` removes
-that override.
-
-Create an isolated copy for the current worktree:
+From a non-main worktree:
 
 ```bash
 docktree fork postgres
 ```
 
-Drop the isolated copy and return to shared data:
+Return to shared data by deleting the isolated copy. Run the command without a confirmation first if you need it to print the exact resource name:
 
 ```bash
-docktree unfork postgres --confirm <resource>
+docktree unfork postgres --confirm shop_shared_feature_example
 ```
 
-The confirmation resource is intentionally explicit. For Postgres logical forks
-it is the generated database name. For generic volume forks it is the generated
-volume name. Run `docktree unfork postgres` without `--confirm` first if you need
-Docktree to print the expected confirmation value.
+Docktree refuses destructive state operations on the main worktree and shared stores. For non-Postgres stateful services, configure `snapshot_source`; Docktree creates an isolated Docker volume snapshot instead.
 
-Docktree refuses destructive stateful operations on the main worktree and on
-shared stores.
+### Optional HTTPS proxy
 
-## Cleanup
+Enable the machine-wide Caddy proxy to give HTTP services stable local hostnames instead of published ports:
 
-By default, pruning is a dry run:
+```toml
+[proxy]
+enabled = true
+dns_suffix = "localhost"
+
+[services.web]
+expose = "http"
+proxy_port = 3000
+public_url_env = "PUBLIC_URL"
+```
+
+`docktree up` starts the proxy automatically. The main worktree is available at `https://web.shop.localhost`; a feature worktree uses a hostname such as `https://web-feature-example.shop.localhost`. `public_url_env` writes that URL to the generated environment file.
+
+For locally trusted HTTPS, export the proxy CA and run the one-time command it prints:
 
 ```bash
-docktree prune
+docktree trust
 ```
 
-Actually remove stopped orphaned Docktree stacks:
+You can also use `docktree proxy up`, `docktree proxy status`, and `docktree proxy down` directly.
 
-```bash
-docktree prune --execute
-```
+### Generated files, cleanup, and troubleshooting
 
-Also consider forked volumes:
+Docktree owns only derived files under `.docktree/`:
 
-```bash
-docktree prune --include-forks
-docktree prune --execute --include-forks --confirm-forks <app>
-```
+| Path | Purpose |
+| --- | --- |
+| `.docktree/.env.worktree` | Resolved ports, environment, and network names. |
+| `.docktree/compose.worktree.yml` | Per-worktree Compose projection. |
+| `.docktree/compose.infra.yml` | Shared-infrastructure Compose projection. |
 
-Running orphaned stacks are reported but not removed automatically.
+Port reservations live in `~/.config/docktree/registry.json`. All of these are regenerated as needed; do not edit them by hand.
 
-## Troubleshooting
+Use `docktree prune` to preview stopped stacks whose worktrees no longer exist, then `docktree prune --execute` to remove them. Add `--include-forks` to preview or clean up orphaned forked volumes; actual fork deletion also requires `--confirm-forks <app>`.
 
-Run:
+Run `docktree doctor` first when something fails. Common causes are an old or stopped Docker Compose installation, a hardcoded host port, `container_name` in Compose, or explicitly named/external volumes that bypass per-worktree isolation.
 
-```bash
-docktree doctor
-```
+For a disposable end-to-end Docker demo from this repository, run `./scripts/smoke.sh`; pass `--keep` to explore the running demo manually.
 
-Common issues:
-
-- Docker is not running.
-- Docker Compose is older than v2.24.
-- A Compose service uses a hardcoded host port instead of `${VAR:-default}`.
-- A shared service depends on a non-shared service.
-- A service declares `container_name`, which can collide across worktrees.
-- A top-level volume uses an explicit `name:` or `external: true`, which can
-  bypass per-worktree isolation.
-- Published ports have drifted from the values in `.docktree/.env.worktree`.
-- The configured secrets wrapper is unavailable.
-
-For more detail on a specific worktree, run:
-
-```bash
-docktree explain
-```
-
-## Command Reference
-
-| Command | Purpose |
-|---|---|
-| `docktree up [service...]` | Regenerate artifacts, ensure shared infra only when needed, and start the current worktree stack with readable phase and build progress output. |
-| `docktree down` | Stop the current worktree stack. |
-| `docktree ls [--json]` | List Docktree-managed stacks. |
-| `docktree ps [worktree] [--service]` | Run Compose `ps` for a worktree stack. |
-| `docktree open [worktree] [service]` | Print a service URL. |
-| `docktree exec [worktree] <service> -- <cmd...>` | Run a command inside a service. |
-| `docktree logs [worktree] [service]` | Run Compose `logs` for a worktree stack. |
-| `docktree shared up/down/status/nuke` | Manage shared infra; `nuke` requires `--confirm <app>-infra`. |
-| `docktree fork <service>` | Give the current worktree isolated data for a stateful service. |
-| `docktree unfork <service> --confirm <resource>` | Delete the isolated data copy and return to shared data. |
-| `docktree explain [worktree]` | Print identity, ports, generated paths, data sources, and Compose argv. |
-| `docktree prune [--execute] [--include-forks --confirm-forks <app>]` | Remove stopped orphaned Docktree resources. |
-| `docktree init [--seed-env]` | Create `docktree.toml`, `.docktree/`, `.docktree/.env.worktree`, gitignore entries, and the shared network. With `--seed-env`, copy `.env.example` to `.env` if `.env` does not exist. |
-| `docktree doctor` | Diagnose configuration, Docker, Compose, ports, infra, and secrets. |
-| `docktree proxy up/down/status` | Manage the machine-global Caddy reverse proxy that routes worktree HTTP services by hostname (opt-in via `[proxy]`). |
-| `docktree trust` | Export the proxy's Caddy local-CA root and print the one-time command to install it into the host trust store. |
-| `docktree version` / `docktree --version` | Print the Docktree version and build metadata. |
-
-## Notes for Former `wtc` Users
-
-- `wtc` is now `docktree`.
-- `wtc.toml` is now `docktree.toml`.
-- `.wtc/` is now `.docktree/`.
-- `~/.config/wtc/apps.json` is now `~/.config/docktree/registry.json`.
-- `wtc db isolate/share` is now `docktree fork/unfork`.
-- `wtc infra` is now `docktree shared`.
-
-## Development
-
-Run the standard verification suite:
+### Develop Docktree
 
 ```bash
 go test -tags netgo ./...
 go vet ./...
-go test -tags netgo -coverprofile=/tmp/docktree.cover ./...
-go tool cover -func=/tmp/docktree.cover
 ```
 
-Build a local binary:
+### Full command reference
 
-```bash
-CGO_ENABLED=0 go build -o /Users/raj-flexiple/.local/bin/docktree .
-```
+| Command | Purpose |
+| --- | --- |
+| `docktree up [service...]` | Start the current worktree, optionally with selected services. |
+| `docktree down` | Stop the current worktree's app stack. |
+| `docktree ls [--json]` | List Docktree-managed stacks. |
+| `docktree ps [worktree] [--service]` | Show a worktree's services. |
+| `docktree open [worktree] [service]` | Print a service URL. |
+| `docktree exec [worktree] <service> -- <cmd...>` | Run a command in a service. |
+| `docktree logs [worktree] [service]` | Show service logs. |
+| `docktree shared up/down/status/nuke` | Manage shared infrastructure. |
+| `docktree fork <service>` | Create isolated state for a configured service. |
+| `docktree unfork <service> --confirm <resource>` | Remove isolated state and return to shared data. |
+| `docktree explain [worktree]` | Show derived identity, ports, files, and commands. |
+| `docktree prune [--execute]` | Preview or remove orphaned Docktree resources. |
+| `docktree init [--seed-env]` | Initialise Docktree in the current repository. |
+| `docktree doctor` | Diagnose Docker, Compose, config, and port problems. |
+| `docktree proxy up/down/status` | Manage the optional local HTTPS proxy. |
+| `docktree trust` | Export the proxy CA and print the trust-store command. |
+| `docktree version` | Print version and build metadata. |
