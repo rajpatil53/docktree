@@ -1,0 +1,53 @@
+<svg width="1200" height="620" viewBox="0 0 1200 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .title { font: 700 23px Arial, sans-serif; fill: #17231C; letter-spacing: -0.6px; }
+    .name { font: 800 36px Arial, sans-serif; fill: #17231C; letter-spacing: -1.8px; }
+    .caption { font: 14px Arial, sans-serif; fill: #69756C; }
+    .label { font: 700 11px Arial, sans-serif; fill: #6D7B70; letter-spacing: 1.4px; }
+    .on-dark { fill: #EAF1E4; }
+    .muted-on-dark { fill: #A9BAAA; }
+  </style>
+  <rect width="1200" height="620" fill="#F3F2EB"/>
+  <text x="64" y="70" class="title">Docktree logo directions</text>
+  <text x="64" y="100" class="caption">Worktree branches, turned into a compact developer-tool mark.</text>
+
+  <!-- Concept 1 -->
+  <rect x="64" y="146" width="336" height="394" rx="16" fill="#F9FAF4" stroke="#D4D9D0"/>
+  <text x="92" y="185" class="label">01 / BRANCH GRAPH</text>
+  <g transform="translate(104 237)" stroke="#17231C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 102V26M28 64H87M28 64H87"/>
+    <path d="M87 64V29M87 64V99"/>
+  </g>
+  <circle cx="132" cy="339" r="14" fill="#17231C"/>
+  <circle cx="191" cy="266" r="14" fill="#9BD35C"/>
+  <circle cx="191" cy="336" r="14" fill="#9BD35C"/>
+  <text x="92" y="415" class="name">docktree</text>
+  <text x="92" y="449" class="caption">A git branch, with one root and two live stacks.</text>
+
+  <!-- Concept 2 -->
+  <rect x="432" y="146" width="336" height="394" rx="16" fill="#E4F0DC" stroke="#BFD7B9"/>
+  <text x="460" y="185" class="label">02 / DOCKING TREE</text>
+  <g transform="translate(466 235)">
+    <rect x="0" y="10" width="30" height="30" rx="6" fill="#17231C"/>
+    <rect x="0" y="86" width="30" height="30" rx="6" fill="#17231C"/>
+    <path d="M30 25H72C91 25 91 101 110 101H133" stroke="#17231C" stroke-width="8" stroke-linecap="round"/>
+    <path d="M30 101H133" stroke="#17231C" stroke-width="8" stroke-linecap="round"/>
+    <rect x="133" y="83" width="39" height="37" rx="8" fill="#79B65E"/>
+    <path d="M144 101H161" stroke="#EAF3E4" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <text x="460" y="415" class="name">docktree</text>
+  <text x="460" y="449" class="caption">Containers converge into a shared infrastructure node.</text>
+
+  <!-- Concept 3 -->
+  <rect x="800" y="146" width="336" height="394" rx="16" fill="#17231C"/>
+  <text x="828" y="185" class="label muted-on-dark">03 / STACKED FORK</text>
+  <g transform="translate(838 235)">
+    <rect x="0" y="0" width="34" height="110" rx="7" fill="#EAF1E4"/>
+    <rect x="59" y="0" width="34" height="45" rx="7" fill="#A9E46D"/>
+    <rect x="59" y="65" width="34" height="45" rx="7" fill="#A9E46D"/>
+    <path d="M34 55H50C60 55 60 22 59 22M50 55C60 55 60 88 59 88" stroke="#EAF1E4" stroke-width="8" stroke-linecap="round"/>
+    <path d="M8 29H26M8 55H26M8 81H26" stroke="#17231C" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="828" y="415" class="name on-dark">docktree</text>
+  <text x="828" y="449" class="caption muted-on-dark">A compact stack that visibly forks into worktrees.</text>
+</svg>

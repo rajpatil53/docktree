@@ -1,0 +1,44 @@
+<svg width="1200" height="540" viewBox="0 0 1200 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .heading{font:700 23px Arial,sans-serif;letter-spacing:-.6px;fill:#17231C}.sub{font:14px Arial,sans-serif;fill:#69756C}.tag{font:700 11px Arial,sans-serif;letter-spacing:1.4px;fill:#718071}.word{font:800 37px Arial,sans-serif;letter-spacing:-2px;fill:#17231C}.note{font:14px Arial,sans-serif;fill:#69756C}.dark{fill:#A9BAAA}
+  </style>
+  <rect width="1200" height="540" fill="#F3F2EB"/>
+  <text x="64" y="66" class="heading">T-as-fork logo directions</text>
+  <text x="64" y="95" class="sub">Each keeps the lowercase dt readable, then lets the t split into worktree branches.</text>
+
+  <!-- 01: terminal fork -->
+  <rect x="64" y="138" width="336" height="330" rx="16" fill="#FAFBF6" stroke="#D4D9D0"/>
+  <text x="92" y="178" class="tag">01 / TERMINAL FORK</text>
+  <g transform="translate(96 209)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M47 15C15 15 11 46 11 61C11 79 22 89 40 89" stroke="#17231C" stroke-width="11"/>
+    <path d="M48 15V94M28 35H68" stroke="#17231C" stroke-width="11"/>
+    <path d="M48 72H76M76 72V57M76 72V87" stroke="#76A65D" stroke-width="6"/>
+    <circle cx="80" cy="57" r="5" fill="#A9E46D"/><circle cx="80" cy="87" r="5" fill="#A9E46D"/>
+  </g>
+  <text x="92" y="335" class="word">docktree</text>
+  <text x="92" y="372" class="note">A normal t, with a clean branch from its lower stem.</text>
+
+  <!-- 02: split crossbar -->
+  <rect x="432" y="138" width="336" height="330" rx="16" fill="#E5F0DD" stroke="#BFD7B9"/>
+  <text x="460" y="178" class="tag">02 / SPLIT CROSSBAR</text>
+  <g transform="translate(466 209)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M48 15C16 15 11 45 11 61C11 79 22 89 40 89" stroke="#17231C" stroke-width="11"/>
+    <path d="M48 15V94" stroke="#17231C" stroke-width="11"/>
+    <path d="M25 35H48M48 35H75M75 35V20M75 35V50" stroke="#17231C" stroke-width="8"/>
+    <circle cx="79" cy="20" r="5" fill="#8FCB61"/><circle cx="79" cy="50" r="5" fill="#8FCB61"/>
+  </g>
+  <text x="460" y="335" class="word">docktree</text>
+  <text x="460" y="372" class="note">The t's crossbar quietly resolves into two live branches.</text>
+
+  <!-- 03: negative fork -->
+  <rect x="800" y="138" width="336" height="330" rx="16" fill="#17231C"/>
+  <text x="828" y="178" class="tag dark">03 / NEGATIVE FORK</text>
+  <g transform="translate(834 209)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M48 15C16 15 11 45 11 61C11 79 22 89 40 89" stroke="#F2F7ED" stroke-width="11"/>
+    <path d="M48 15V94M28 35H68" stroke="#F2F7ED" stroke-width="11"/>
+    <path d="M48 73H74M74 73V59M74 73V87" stroke="#A9E46D" stroke-width="6"/>
+    <circle cx="78" cy="59" r="4.5" fill="#A9E46D"/><circle cx="78" cy="87" r="4.5" fill="#A9E46D"/>
+  </g>
+  <text x="828" y="335" style="font:800 37px Arial,sans-serif;letter-spacing:-2px;fill:#F2F7ED">docktree</text>
+  <text x="828" y="372" style="font:14px Arial,sans-serif;fill:#A9BAAA">A dark-mode badge with the fork carried by the t's tail.</text>
+</svg>

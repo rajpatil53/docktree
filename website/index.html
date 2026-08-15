@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Run isolated Docker Compose stacks for every Git worktree, so parallel agents can test in parallel." />
+    <title>Docktree — Parallel agents need parallel dev stacks</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .features { padding: 42px 0 145px; }
+      .features-heading { display:grid; grid-template-columns:1.05fr 1fr; gap:24px 70px; align-items:end; margin-bottom:42px; }
+      .features-heading .eyebrow { grid-column:1/-1; margin:0; }
+      .features-heading h2 { font-size:clamp(39px,5vw,67px); line-height:.99; letter-spacing:-.075em; margin:0; }
+      .features-heading > p:last-child { font-size:14px; line-height:1.7; color:#68746b; max-width:390px; margin:0 0 5px; }
+      .stack-explorer { background:#17211b; border:1px solid #314438; border-radius:10px; overflow:hidden; box-shadow:8px 8px 0 #c8d3c5; }
+      .explorer-topbar { height:49px; padding:0 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #314438; color:#8da092; font:10px var(--mono); letter-spacing:.06em; }
+      .explorer-topbar span:first-child { color:#d1ded2; }.explorer-topbar i { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--lime); box-shadow:0 0 0 4px #2c4c32; margin-right:9px; }
+      .explorer-content { display:grid; grid-template-columns:minmax(185px,.68fr) 1.32fr; min-height:360px; }.worktree-picker { background:#111a14; padding:15px 11px; display:flex; flex-direction:column; gap:7px; border-right:1px solid #314438; }
+      .worktree-tab { color:#91a193; text-align:left; font:11px var(--mono); background:transparent; border:1px solid transparent; border-radius:6px; padding:12px 10px; display:grid; grid-template-columns:22px 1fr 7px; gap:9px; align-items:center; cursor:pointer; transition:.2s ease; }.worktree-tab:hover { background:#1d2b20; color:#dce9dc; }.worktree-tab.is-active { background:#2a4b30; border-color:#426b48; color:#f4f8ef; box-shadow:inset 3px 0 0 var(--lime); }.worktree-tab b,.worktree-tab small { display:block; }.worktree-tab b { font-weight:500; font-size:11px; }.worktree-tab small { font-size:9px; color:#78917b; margin-top:4px; }
+      .tab-mark,.stage-glyph { width:21px; height:21px; display:grid; place-items:center; border-radius:5px; background:#2d4932; color:var(--lime); font-size:12px; }.worktree-tab i { width:6px; height:6px; border-radius:50%; background:#69b76d; }
+      .stack-stage { padding:35px 38px 28px; position:relative; background:radial-gradient(circle at 80% 20%,#26452c 0,transparent 37%),#17211b; }.stack-stage.is-changing .stage-head,.stack-stage.is-changing .stage-description,.stack-stage.is-changing .stage-services,.stack-stage.is-changing .stage-url { animation:stack-in .48s both; }.stage-label,.shared-rail p { font:10px var(--mono); letter-spacing:.08em; color:#788d7b; margin:0; }.stage-head { display:flex; align-items:center; gap:11px; margin:14px 0 12px; }.stage-glyph { width:35px; height:35px; font-size:17px; }.stage-head b,.stage-head small { display:block; }.stage-head b { font:600 17px var(--mono); color:#f1f6ed; }.stage-head small { font:10px var(--mono); color:#83a087; margin-top:4px; }.stage-status { margin-left:auto; border:1px solid #406446; border-radius:99px; background:#1e3723; color:#a8dca6; font:10px var(--mono); padding:5px 8px; }.stage-status:before { content:""; display:inline-block; width:5px; height:5px; border-radius:50%; background:#80df81; margin:0 5px 1px 0; }.stage-description { color:#adbdaf; font-size:12px; line-height:1.55; max-width:460px; margin:0 0 19px; }
+      .stage-services { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.stage-services div { border:1px solid #38513c; background:#1a2a1d; border-radius:5px; padding:13px; }.stage-services span,.stage-services b { display:block; font:10px var(--mono); }.stage-services span { color:#849789; }.stage-services b { color:#e8f3e5; margin-top:8px; }.stage-url { margin-top:11px; border:1px solid #3a6140; background:#203a25; border-radius:5px; padding:12px 13px; display:flex; gap:10px; align-items:center; font:11px var(--mono); overflow:hidden; }.stage-url > span { color:#8fcb84; }.stage-url code { color:#c5f097; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }.stage-url b { margin-left:auto; color:#8fcb84; font-weight:400; font-size:10px; }
+      .shared-rail { margin-top:25px; padding-top:16px; border-top:1px dashed #3b523e; }.shared-rail p span { display:inline-block; width:6px; height:6px; border-radius:50%; background:#e2bd6a; margin-right:7px; }.shared-rail > div { display:flex; gap:7px; margin-top:10px; }.shared-rail b { font:10px var(--mono); font-weight:400; color:#b5c8b5; border:1px solid #3a5140; border-radius:3px; padding:6px 8px; }.explorer-note { margin:0; padding:15px 20px; background:#203025; color:#8ba18d; font:11px var(--mono); }.explorer-note span { color:#b6e57b; margin-right:6px; }
+      @keyframes stack-in { from { opacity:.32; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+      .feature-list { display:grid; grid-template-columns:repeat(2,1fr); border-top:1px solid #cfd7ca; margin-top:84px; }.feature-list article { display:flex; gap:21px; padding:28px 20px 29px 0; border-bottom:1px solid #cfd7ca; }.feature-list article:nth-child(odd) { margin-right:30px; }.feature-index { font:10px var(--mono); color:#749276; padding-top:6px; }.feature-list h3 { font-size:18px; letter-spacing:-.05em; margin:0 0 8px; }.feature-list p { color:#68746b; font-size:12px; line-height:1.6; margin:0; max-width:330px; }.feature-list code { font:10px var(--mono); color:#4b7453; background:#e2eadf; padding:2px 3px; border-radius:2px; }
+      @media (max-width:800px) { .features { padding:30px 0 95px; }.features-heading { grid-template-columns:1fr; gap:17px; margin-bottom:32px; }.features-heading .eyebrow { grid-column:auto; }.explorer-content { grid-template-columns:1fr; }.worktree-picker { padding:10px; flex-direction:row; border-right:0; border-bottom:1px solid #314438; overflow:auto; }.worktree-tab { min-width:160px; }.stack-stage { padding:28px; }.feature-list { margin-top:62px; }.feature-list article:nth-child(odd) { margin-right:20px; } }
+      @media (max-width:560px) { .features-heading h2 { font-size:42px; }.explorer-topbar { padding:0 14px; }.explorer-content { min-height:0; }.worktree-tab { min-width:145px; padding:9px 7px; }.stack-stage { padding:24px 17px; }.stage-services { gap:5px; }.stage-services div { padding:10px; }.stage-url { font-size:9px; padding:11px 9px; gap:6px; }.stage-url b { display:none; }.shared-rail > div { flex-wrap:wrap; }.feature-list { grid-template-columns:1fr; margin-top:50px; }.feature-list article,.feature-list article:nth-child(odd) { margin-right:0; padding:22px 0; }.explorer-note { padding:13px 15px; line-height:1.6; } }
+    </style>
+  </head>
+  <body>
+    <div class="page-glow glow-one"></div>
+    <div class="page-glow glow-two"></div>
+
+    <header class="nav shell">
+      <a class="brand" href="#top" aria-label="Docktree home">
+        <span class="brand-mark">dt</span>
+        docktree
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#what-it-solves">What it solves</a>
+        <a href="#features">Features</a>
+        <a href="https://github.com/rajpatil53/docktree">GitHub <span>↗</span></a>
+      </nav>
+      <a class="nav-install" href="#install">Install <span>→</span></a>
+    </header>
+
+    <main id="top">
+      <section class="hero shell">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="pulse"></span> Parallel agents, unblocked</p>
+          <h1>Every agent.<br /><em>Its own stack.</em></h1>
+          <p class="hero-text">AI agents can work across Git worktrees in parallel. Local dev cannot—until now. Docktree gives every worktree an isolated Docker Compose stack, so ports don’t collide and databases don’t bleed between tasks.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#install">Get Docktree <span>→</span></a>
+            <a class="button button-quiet" href="#what-it-solves">What it solves <span>↓</span></a>
+          </div>
+          <p class="tiny-note"><span>⌘</span> Built for local development · macOS, Linux &amp; WSL2</p>
+        </div>
+
+        <div class="terminal-wrap" aria-label="Example Docktree terminal output">
+          <div class="terminal-shadow"></div>
+          <div class="terminal">
+            <div class="terminal-top"><span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span><span class="terminal-name">~/code/shop · zsh</span></div>
+            <div class="terminal-body">
+              <p><span class="prompt">➜</span> <span class="path">shop</span> <span class="command">git worktree add ../shop-checkout checkout-flow</span></p>
+              <p class="muted">Preparing worktree (new branch 'checkout-flow')</p>
+              <p><span class="prompt">➜</span> <span class="path">shop-checkout</span> <span class="command">docktree up</span></p>
+              <div class="output">
+                <p><span class="ok">✓</span> Identity <span class="dim">shop-checkout · checkout-flow</span></p>
+                <p><span class="ok">✓</span> Shared infra <span class="dim">postgres, redis already running</span></p>
+                <p><span class="ok">✓</span> App stack <span class="dim">started on stable ports</span></p>
+                <p class="url-line">  ↳ <span>https://api-checkout-flow.shop.localhost</span> <b>open</b></p>
+              </div>
+              <p><span class="prompt">➜</span> <span class="cursor"></span></p>
+            </div>
+          </div>
+          <div class="branch-card branch-main"><span class="branch-icon">⌘</span><div><b>main</b><small>api.shop.localhost</small></div><i></i></div>
+          <div class="branch-card branch-feature"><span class="branch-icon">⌘</span><div><b>checkout-flow</b><small>api-checkout-flow.shop.localhost</small></div><i></i></div>
+        </div>
+      </section>
+
+      <section class="split-section shell" id="what-it-solves">
+        <div class="section-intro">
+          <p class="eyebrow">What it solves</p>
+          <h2>Parallel code<br />deserves <em>parallel<br />dev.</em></h2>
+          <p>One machine, many worktrees: normally that means port conflicts, shared database schema pollution, and agents waiting for a stack to free up. Docktree isolates each app stack while keeping the shared infrastructure you need.</p>
+        </div>
+        <div class="flow-card">
+          <div class="flow-header"><span>YOUR MACHINE</span><span>ONE DOCKER ENGINE</span></div>
+          <div class="flow-worktrees">
+            <div class="worktree"><span class="folder">⌘</span><span><b>main</b><small>app-main</small></span><i class="link-line"></i></div>
+            <div class="worktree active"><span class="folder">⌘</span><span><b>feature/payments</b><small>app-feature_payments</small></span><i class="link-line"></i></div>
+            <div class="worktree"><span class="folder">⌘</span><span><b>fix/sidebar</b><small>app-fix_sidebar</small></span><i class="link-line"></i></div>
+          </div>
+          <div class="flow-infra">
+            <p><span class="stack-dot"></span> shared infrastructure</p>
+            <div><span>postgres</span><span>redis</span><span>meilisearch</span></div>
+          </div>
+          <p class="flow-caption">Separate app containers. One happy database bill.</p>
+        </div>
+      </section>
+
+      <section class="features shell" id="features" aria-labelledby="features-title">
+        <div class="features-heading">
+          <p class="eyebrow">Built for parallel local development</p>
+          <h2 id="features-title">Features that keep<br /><em>every task moving.</em></h2>
+          <p>Each worktree below represents one way Docktree keeps parallel development from getting in your way.</p>
+        </div>
+
+        <div class="stack-explorer">
+          <div class="explorer-topbar"><span><i></i> FEATURE WORKTREES</span><span>6 capabilities</span></div>
+          <div class="explorer-content">
+            <div class="worktree-picker" role="tablist" aria-label="Docktree features">
+              <button class="worktree-tab is-active" type="button" role="tab" aria-selected="true" data-worktree="stacks"><span class="tab-mark">⌘</span><span><b>main</b><small>01 · parallel dev stacks</small></span><i></i></button>
+              <button class="worktree-tab" type="button" role="tab" aria-selected="false" data-worktree="ports"><span class="tab-mark">⌘</span><span><b>feature/port-isolation</b><small>02 · no collisions</small></span><i></i></button>
+              <button class="worktree-tab" type="button" role="tab" aria-selected="false" data-worktree="database"><span class="tab-mark">⌘</span><span><b>feature/database-isolation</b><small>03 · clean data</small></span><i></i></button>
+              <button class="worktree-tab" type="button" role="tab" aria-selected="false" data-worktree="proxy"><span class="tab-mark">⌘</span><span><b>feature/proxy-urls</b><small>04 · stable routes</small></span><i></i></button>
+              <button class="worktree-tab" type="button" role="tab" aria-selected="false" data-worktree="shared"><span class="tab-mark">⌘</span><span><b>feature/shared-services</b><small>05 · reuse the heavy stuff</small></span><i></i></button>
+              <button class="worktree-tab" type="button" role="tab" aria-selected="false" data-worktree="compose"><span class="tab-mark">⌘</span><span><b>feature/compose-intact</b><small>06 · zero rewrites</small></span><i></i></button>
+            </div>
+            <div class="stack-stage" aria-live="polite">
+              <p class="stage-label" id="stack-kicker">01 · THE DEFAULT</p>
+              <div class="stage-head"><span class="stage-glyph">⌘</span><div><b id="stack-name">Parallel dev stacks</b><small id="stack-agent">Run every worktree at once</small></div><span class="stage-status">ready</span></div>
+              <p class="stage-description" id="stack-description">A complete Docker Compose app stack per worktree means no agent needs to wait for another task to finish.</p>
+              <div class="stage-services">
+                <div><span id="stack-metric-one-label">worktrees</span><b id="stack-port">3 live</b></div>
+                <div><span id="stack-metric-two-label">compose</span><b id="stack-api-port">per branch</b></div>
+                <div><span id="stack-metric-three-label">status</span><b id="stack-metric-three">READY</b></div>
+              </div>
+              <div class="stage-url"><span>↳</span><code id="stack-url">docktree up</code><b id="stack-action">run it ↗</b></div>
+              <div class="shared-rail"><p><span></span> SHARED WHEN YOU WANT IT</p><div><b>postgres</b><b>redis</b><b>mailpit</b></div></div>
+            </div>
+          </div>
+          <p class="explorer-note"><span>✦</span> Switch worktrees to explore every feature. They all work together in one Docker engine.</p>
+        </div>
+      </section>
+
+      <section class="install shell" id="install">
+        <div>
+          <p class="eyebrow">Ready in under a minute</p>
+          <h2>Make your branches<br /><em>concurrent.</em></h2>
+        </div>
+        <div class="install-box">
+          <div class="install-command"><span>$</span> go install github.com/rajpatil53/docktree@latest <button id="copy-install" aria-label="Copy install command">⧉</button></div>
+          <p>Then, from any Docker Compose project:</p>
+          <ol>
+            <li><code>docktree init</code><span>— one tiny config</span></li>
+            <li><code>docktree up</code><span>— stack is live</span></li>
+            <li><code>docktree open</code><span>— meet your new URL</span></li>
+          </ol>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell"><a class="brand" href="#top"><span class="brand-mark">dt</span>docktree</a><p>Made for developers who refuse to wait.</p><a href="https://github.com/rajpatil53/docktree">View source ↗</a></footer>
+    <script>
+      document.querySelector('#copy-install').addEventListener('click', async (event) => {
+        const command = 'go install github.com/rajpatil53/docktree@latest';
+        try {
+          await navigator.clipboard.writeText(command);
+          event.currentTarget.textContent = '✓';
+          setTimeout(() => { event.currentTarget.textContent = '⧉'; }, 1600);
+        } catch {
+          event.currentTarget.textContent = 'copy';
+        }
+      });
+
+      const worktrees = {
+        stacks: { kicker: '01 · THE DEFAULT', name: 'Parallel dev stacks', agent: 'Run every worktree at once', description: 'A complete Docker Compose app stack per worktree means no agent needs to wait for another task to finish.', portLabel: 'worktrees', port: '3 live', apiPortLabel: 'compose', apiPort: 'per branch', metricLabel: 'status', metric: 'READY', url: 'docktree up', action: 'run it ↗' },
+        ports: { kicker: '02 · NO COLLISIONS', name: 'Automatic port isolation', agent: 'Ports find their own lane', description: 'Docktree gives each worktree a collision-resistant port range, so every local stack can stay online.', portLabel: 'web', port: ':4182', apiPortLabel: 'api', apiPort: ':4183', metricLabel: 'conflicts', metric: 'NONE', url: 'api-feature-payments.shop.localhost', action: 'open ↗' },
+        database: { kicker: '03 · CLEAN DATA', name: 'Database isolation', agent: 'Experiments stay contained', description: 'Safely fork the stateful services that need their own sandbox, without polluting another branch’s schema.', portLabel: 'postgres', port: 'forked', apiPortLabel: 'schema', apiPort: 'payments_dev', metricLabel: 'bleed', metric: 'NONE', url: 'docktree fork db', action: 'fork it ↗' },
+        proxy: { kicker: '04 · STABLE ROUTES', name: 'Stable proxy URLs', agent: 'Every branch has an address', description: 'Predictable HTTPS .localhost URLs make concurrent branches easy to test, bookmark, and share locally.', portLabel: 'protocol', port: 'HTTPS', apiPortLabel: 'route', apiPort: 'stable', metricLabel: 'dns', metric: 'LOCAL', url: 'api-feature-payments.shop.localhost', action: 'open ↗' },
+        shared: { kicker: '05 · USE LESS', name: 'Shared heavy services', agent: 'Reuse what does not need a fork', description: 'Keep costly services like Redis, search, and mail running once while app containers remain isolated.', portLabel: 'postgres', port: 'shared', apiPortLabel: 'redis', apiPort: 'shared', metricLabel: 'copies', metric: 'ONE', url: 'docktree status', action: 'inspect ↗' },
+        compose: { kicker: '06 · KEEP YOUR SETUP', name: 'Zero Compose rewrites', agent: 'Your compose file stays yours', description: 'Docktree works alongside your existing Docker Compose project with minimal configuration and no daemon.', portLabel: 'compose', port: 'untouched', apiPortLabel: 'daemon', apiPort: 'none', metricLabel: 'setup', metric: 'MINIMAL', url: 'docktree init', action: 'start ↗' }
+      };
+      const tabs = [...document.querySelectorAll('.worktree-tab')];
+      const fields = {
+        kicker: document.querySelector('#stack-kicker'), name: document.querySelector('#stack-name'), agent: document.querySelector('#stack-agent'), description: document.querySelector('#stack-description'),
+        portLabel: document.querySelector('#stack-metric-one-label'), port: document.querySelector('#stack-port'), apiPortLabel: document.querySelector('#stack-metric-two-label'), apiPort: document.querySelector('#stack-api-port'),
+        metricLabel: document.querySelector('#stack-metric-three-label'), metric: document.querySelector('#stack-metric-three'), url: document.querySelector('#stack-url'), action: document.querySelector('#stack-action')
+      };
+      let selectedWorktree = 0;
+      const activateWorktree = (index) => {
+        selectedWorktree = index;
+        const tab = tabs[index];
+        const worktree = worktrees[tab.dataset.worktree];
+        tabs.forEach((item, itemIndex) => {
+          const active = itemIndex === index;
+          item.classList.toggle('is-active', active);
+          item.setAttribute('aria-selected', active);
+        });
+        Object.entries(fields).forEach(([key, field]) => { field.textContent = worktree[key]; });
+        document.querySelector('.stack-stage').classList.remove('is-changing');
+        requestAnimationFrame(() => document.querySelector('.stack-stage').classList.add('is-changing'));
+      };
+      tabs.forEach((tab, index) => tab.addEventListener('click', () => activateWorktree(index)));
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setInterval(() => activateWorktree((selectedWorktree + 1) % tabs.length), 4200);
+      }
+    </script>
+  </body>
+</html>
