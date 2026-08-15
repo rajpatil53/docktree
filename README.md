@@ -23,14 +23,14 @@ Compose setup stays usable without Docktree.
 
 ## Requirements
 
-- Go 1.21 or newer to build from source.
+- Go 1.26 or newer to build from source.
 - Docker with Docker Compose v2.24 or newer.
 - Linux or macOS. Windows is supported through WSL2.
 - A project managed by git.
 
 ## Install
 
-With Go 1.21 or newer (installs the latest tagged release to `$GOBIN`, usually
+With Go 1.26 or newer (installs the latest tagged release to `$GOBIN`, usually
 `~/go/bin`):
 
 ```bash
@@ -465,6 +465,7 @@ docktree explain
 | `docktree doctor` | Diagnose configuration, Docker, Compose, ports, infra, and secrets. |
 | `docktree proxy up/down/status` | Manage the machine-global Caddy reverse proxy that routes worktree HTTP services by hostname (opt-in via `[proxy]`). |
 | `docktree trust` | Export the proxy's Caddy local-CA root and print the one-time command to install it into the host trust store. |
+| `docktree version` / `docktree --version` | Print the Docktree version and build metadata. |
 
 ## Notes for Former `wtc` Users
 

@@ -27,6 +27,7 @@ var expectedRootCommands = []string{
 	"doctor",
 	"proxy",
 	"trust",
+	"version",
 }
 
 func TestRunDispatchesSupportedDesignCommands(t *testing.T) {
@@ -69,6 +70,31 @@ func TestRunHelpPrintsDocktreeUsage(t *testing.T) {
 	}
 	if got, want := stdout.String(), expectedUsageText(); got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+}
+
+func TestRunPrintsVersion(t *testing.T) {
+	originalVersion, originalCommit, originalDate := Version, Commit, Date
+	Version, Commit, Date = "1.2.3", "abcdef0", "2026-08-15T00:00:00Z"
+	t.Cleanup(func() {
+		Version, Commit, Date = originalVersion, originalCommit, originalDate
+	})
+
+	for _, args := range [][]string{{"version"}, {"--version"}, {"-V"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := Run(args, strings.NewReader(""), &stdout, &stderr)
+			if code != 0 {
+				t.Fatalf("Run(%v) exit = %d, want 0", args, code)
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("stderr = %q, want empty", stderr.String())
+			}
+			want := "docktree version 1.2.3 (commit abcdef0, built 2026-08-15T00:00:00Z)\n"
+			if got := stdout.String(); got != want {
+				t.Fatalf("stdout = %q, want %q", got, want)
+			}
+		})
 	}
 }
 

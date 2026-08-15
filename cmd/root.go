@@ -26,6 +26,7 @@ var rootCommandNames = []string{
 	"doctor",
 	"proxy",
 	"trust",
+	"version",
 }
 
 var rootCommands = func() map[string]rootHandler {
@@ -78,6 +79,9 @@ var rootCommands = func() map[string]rootHandler {
 		"trust": func(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			return runTrust(context.Background(), args, defaultCommandDeps(stdin, stdout, stderr))
 		},
+		"version": func(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+			return runVersion(args, stdout)
+		},
 	}
 	return commands
 }()
@@ -94,6 +98,9 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch name {
 	case "-h", "--help", "help":
 		printUsage(stdout)
+		return 0
+	case "--version", "-V":
+		printVersion(stdout)
 		return 0
 	}
 

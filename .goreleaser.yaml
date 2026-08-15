@@ -1,0 +1,30 @@
+version: 2
+
+builds:
+  - id: docktree
+    main: .
+    binary: docktree
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/rajpatil53/docktree/cmd.Version={{ .Version }} -X github.com/rajpatil53/docktree/cmd.Commit={{ .Commit }} -X github.com/rajpatil53/docktree/cmd.Date={{ .CommitDate }}
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    ids:
+      - docktree
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
